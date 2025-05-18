@@ -50,9 +50,9 @@ if student_name and password:
     university_fixed_fee = 60
     total_amount = hour_fees + university_fixed_fee
 
-    # Gas fee covered by university
-    gas_fee = 13.5
-
+    # Gas fee covered by university (ETH)
+    gas_fee_eth = 0.0000134  # قيمة الغاز بالـ ETH (مثال)
+    
     # Effective payment amount based on payment type
     effective_payment = total_amount if payment_option == "Full" else amount_paid_by_student
 
@@ -117,15 +117,6 @@ if student_name and password:
     })
     st.dataframe(df)
 
-    # --- Download Installment Schedule ---
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Download Installment Schedule as CSV",
-        data=csv,
-        file_name=f'{student_name}_installment_schedule.csv',
-        mime='text/csv'
-    )
-
     # --- Payment Confirmation ---
     if st.button("Confirm Payment"):
         st.success("✅ Payment has been confirmed successfully.")
@@ -148,8 +139,10 @@ if student_name and password:
     st.sidebar.write(f"💳 Funding Type: {funding_type}")
     st.sidebar.write(f"💰 Total Tuition Fee: {total_amount} JOD")
     st.sidebar.write(f"💵 Amount Paid: {effective_payment} JOD")
+    st.sidebar.write(f"⛽ Gas Fee Covered by University: {gas_fee_eth} ETH")
     st.sidebar.write(f"📆 Today's Date: {today.strftime('%Y-%m-%d')}")
 
 else:
     st.warning("Please enter your student name and password to continue.")
+
 
