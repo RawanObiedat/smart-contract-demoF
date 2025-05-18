@@ -1,13 +1,25 @@
+import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 
-# Input Data
-number_of_hours = 15
-funding_type = "Teachers Grant"  # Options: Royal Grant, Teachers Grant, Staff Grant, Loans & Grants, Regular, Parallel
-payment_option = "Partial"       # Options: "Full" or "Partial"
-amount_paid_by_student = 400     # Amount paid if "Partial", ignored if "Full"
+# Page title
+st.title("🎓 Tuition Installment Planner")
 
-# Determine credit hour price based on funding type
+# --- Inputs from user ---
+number_of_hours = st.number_input("Enter number of credit hours:", min_value=1, value=15)
+funding_type = st.selectbox("Select funding type:", [
+    "Royal Grant", "Teachers Grant", "Staff Grant",
+    "Loans & Grants", "Regular", "Parallel"
+])
+payment_option = st.radio("Select payment type:", ["Full", "Partial"])
+
+# Only show partial payment input if selected
+if payment_option == "Partial":
+    amount_paid_by_student = st.number_input("Enter amount you want to pay now (JOD):", min_value=0.0, value=400.0)
+else:
+    amount_paid_by_student = 0.0  # ignored in case of Full payment
+
+# --- Logic processing ---
 funding_prices = {
     "Royal Grant": 45,
     "Teachers Grant": 40,
@@ -18,13 +30,14 @@ funding_prices = {
 }
 credit_hour_price = funding_prices.get(funding_type, 50)
 
-# Calculate total fees
 hour_fees = credit_hour_price * number_of_hours
 university_fixed_fee = 60
 total_amount = hour_fees + university_fixed_fee
 
-# Gas fee covered by the university
+# Gas fee covered by university
 gas_fee = 13.5
+
+# Effective payment based on payment type
 effective_payment = total_amount if payment_option == "Full" else amount_paid_by_student
 
 # Prepare installment plan
@@ -32,13 +45,14 @@ installments_count = 3
 installment_value = round(total_amount / installments_count, 2)
 today = datetime.today()
 due_dates = [today + timedelta(days=30 * i) for i in range(installments_count)]
-reminder_dates = [date - timedelta(days=14) for date in due_dates]
+reminder_dates = [d - timedelta(days=14) for d in due_dates]
 
-# Allocate paid amount across installments
+# Allocate paid amount
 payments = []
 statuses = []
-remaining = total_amount
 remaining_payment = effective_payment
+running_balance = total_amount
+remaining_after_payments = []
 
 for i in range(installments_count):
     if remaining_payment >= installment_value:
@@ -53,17 +67,24 @@ for i in range(installments_count):
 
     payments.append(round(paid, 2))
     statuses.append(status)
-    remaining_payment -= paid
-    remaining -= paid
 
-# Compute remaining balance after each installment
-remaining_after_payments = []
-running_balance = total_amount
-for i in range(installments_count):
-    running_balance -= payments[i]
+    running_balance -= paid
     remaining_after_payments.append(round(running_balance, 2))
+    remaining_payment -= paid
 
-# Create the installment DataFrame
+# --- Display summary ---
+st.subheader("🧾 Payment Summary")
+st.write("**Funding Type:**", funding_type)
+st.write("**Credit Hour Price (JOD):**", credit_hour_price)
+st.write("**Total Credit Hours:**", number_of_hours)
+st.write("**University Fixed Fee (JOD):**", university_fixed_fee)
+st.write("**Total Tuition Fee (JOD):**", total_amount)
+st.write("**Payment Type:**", payment_option)
+if payment_option == "Partial":
+    st.write("**Amount Paid by Student (JOD):**", amount_paid_by_student)
+
+# --- Show Installment Table ---
+st.subheader("📅 Installment Schedule")
 df = pd.DataFrame({
     "Installment #": [f"#{i+1}" for i in range(installments_count)],
     "Due Date": [d.strftime("%Y-%m-%d") for d in due_dates],
@@ -73,16 +94,4 @@ df = pd.DataFrame({
     "Remaining After Payment (JOD)": remaining_after_payments,
     "Status": statuses
 })
-
-# Display summary
-print("🧾 Payment Summary:")
-print("Funding Type:", funding_type)
-print("Credit Hour Price (JOD):", credit_hour_price)
-print("Total Credit Hours:", number_of_hours)
-print("University Fixed Fee (JOD):", university_fixed_fee)
-print("Total Tuition Fee (JOD):", total_amount)
-print("Payment Type:", payment_option)
-print("Amount Paid by Student (JOD):", effective_payment)
-
-print("\n📅 Installment Schedule:\n")
-print(df.to_string(index=False))
+st.dataframe(df)
