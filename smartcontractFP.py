@@ -18,7 +18,7 @@ if student_name and password:
     st.header("📄 Contract Information")
     
     # Select number of credit hours
-    number_of_hours = st.selectbox("Number of Credit Hours:", options=[3, 6, 9, 12, 15, 18, 21, 24], index=4)
+    number_of_hours = st.selectbox("Number of Credit Hours:", options=[6, 9, 12, 15, 18, 21], index=4)
     
     # Select funding type
     funding_type = st.selectbox("Funding Type:", [
@@ -32,6 +32,8 @@ if student_name and password:
     # Input amount paid if partial payment
     if payment_option == "Partial":
         amount_paid_by_student = st.number_input("Amount Paid Now (JOD):", min_value=0.0, value=0.0)
+        if amount_paid_by_student > 0:
+            st.success(f"💸 Payment of {amount_paid_by_student} JOD confirmed!")
     else:
         amount_paid_by_student = 0.0  # ignored if full payment
     
@@ -50,7 +52,7 @@ if student_name and password:
     university_fixed_fee = 60
     total_amount = hour_fees + university_fixed_fee
     
-    # Gas fee covered by university
+    # Gas fee covered by university (not added to student's fees)
     gas_fee = 13.5
     
     # Effective payment amount based on payment type
@@ -66,26 +68,35 @@ if student_name and password:
     # Allocate paid amount across installments
     payments = []
     statuses = []
+    remaining_after_payments = []
+    
     remaining_payment = effective_payment
     running_balance = total_amount
-    remaining_after_payments = []
     
     for i in range(installments_count):
         if remaining_payment >= installment_value:
             paid = installment_value
             status = "Paid"
+            # For fully paid installment, remaining after payment = 0
+            remaining_after_payments.append(0.0)
         elif 0 < remaining_payment < installment_value:
             paid = remaining_payment
             status = "Partial"
+            running_balance -= paid
+            remaining_after_payments.append(round(running_balance, 2))
         else:
             paid = 0
             status = "Pending"
+            # Show remaining balance only on the first pending or partial installment
+            if len([r for r in remaining_after_payments if r != 0]) == 0:
+                remaining_after_payments.append(round(running_balance, 2))
+            else:
+                remaining_after_payments.append(0.0)
         
         payments.append(round(paid, 2))
         statuses.append(status)
         
         running_balance -= paid
-        remaining_after_payments.append(round(running_balance, 2))
         remaining_payment -= paid
     
     # --- Display information ---
@@ -103,6 +114,8 @@ if student_name and password:
     if payment_option == "Partial":
         st.info(f"💰 Amount Paid by Student: {amount_paid_by_student} JOD")
     
+    st.info(f"⛽ Gas Fee Covered by University: {gas_fee} JOD (not included in student's fees)")
+    
     # --- Installments Table ---
     st.subheader("📅 Installment Schedule")
     df = pd.DataFrame({
@@ -116,11 +129,18 @@ if student_name and password:
     })
     st.dataframe(df)
     
-    # --- Payment Distribution Chart ---
+    # --- Payment Distribution Pie Chart ---
     st.subheader("📈 Payment Distribution")
-    fig = px.bar(df, x="Installment #", y="Paid Amount (JOD)", color="Status",
-                 labels={"Paid Amount (JOD)": "Paid Amount"},
-                 title="Payment Distribution Across Installments")
+    paid_total = sum(payments)
+    remaining_total = total_amount - paid_total
+    pie_data = pd.DataFrame({
+        "Status": ["Paid", "Remaining"],
+        "Amount (JOD)": [paid_total, remaining_total]
+    })
+    fig = px.pie(pie_data, values="Amount (JOD)", names="Status", 
+                 color="Status", 
+                 color_discrete_map={"Paid": "green", "Remaining": "red"},
+                 title="Payment Distribution: Paid vs Remaining")
     st.plotly_chart(fig)
     
     # --- Info Sidebar ---
@@ -130,8 +150,8 @@ if student_name and password:
     st.sidebar.write(f"💳 Funding Type: {funding_type}")
     st.sidebar.write(f"💰 Total Tuition Fee: {total_amount} JOD")
     st.sidebar.write(f"💵 Amount Paid: {effective_payment} JOD")
+    st.sidebar.write(f"⛽ Gas Fee (University Covered): {gas_fee} JOD")
     st.sidebar.write(f"📆 Today's Date: {today.strftime('%Y-%m-%d')}")
     
 else:
     st.warning("Please enter your student name and password to continue.")
-
