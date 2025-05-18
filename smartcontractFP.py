@@ -13,30 +13,28 @@ password = st.sidebar.text_input("Password:", type="password")
 
 if student_name and password:
     st.success(f"Welcome, {student_name}!")
-    
+
     # --- Input Data ---
     st.header("📄 Contract Information")
-    
+
     # Select number of credit hours
-    number_of_hours = st.selectbox("Number of Credit Hours:", options=[6, 9, 12, 15, 18, 21], index=4)
-    
+    number_of_hours = st.selectbox("Number of Credit Hours:", options=[3, 6, 9, 12, 15, 18, 21, 24], index=4)
+
     # Select funding type
     funding_type = st.selectbox("Funding Type:", [
         "Royal Grant", "Teachers Grant", "Staff Grant",
         "Loans & Grants", "Regular", "Parallel"
     ])
-    
+
     # Select payment option
     payment_option = st.radio("Payment Type:", ["Full", "Partial"])
-    
+
     # Input amount paid if partial payment
     if payment_option == "Partial":
         amount_paid_by_student = st.number_input("Amount Paid Now (JOD):", min_value=0.0, value=0.0)
-        if amount_paid_by_student > 0:
-            st.success(f"💸 Payment of {amount_paid_by_student} JOD confirmed!")
     else:
-        amount_paid_by_student = 0.0  # ignored if full payment
-    
+        amount_paid_by_student = 0.0
+
     # --- Calculations ---
     funding_prices = {
         "Royal Grant": 45,
@@ -47,75 +45,65 @@ if student_name and password:
         "Parallel": 60
     }
     credit_hour_price = funding_prices.get(funding_type, 50)
-    
+
     hour_fees = credit_hour_price * number_of_hours
     university_fixed_fee = 60
     total_amount = hour_fees + university_fixed_fee
-    
-    # Gas fee covered by university (not added to student's fees)
+
+    # Gas fee covered by university
     gas_fee = 13.5
-    
+
     # Effective payment amount based on payment type
     effective_payment = total_amount if payment_option == "Full" else amount_paid_by_student
-    
+
     # --- Installment plan ---
     installments_count = 3
     installment_value = round(total_amount / installments_count, 2)
     today = datetime.today()
     due_dates = [today + timedelta(days=30 * i) for i in range(installments_count)]
     reminder_dates = [d - timedelta(days=14) for d in due_dates]
-    
+
     # Allocate paid amount across installments
     payments = []
     statuses = []
     remaining_after_payments = []
-    
     remaining_payment = effective_payment
-    running_balance = total_amount
-    
+
     for i in range(installments_count):
         if remaining_payment >= installment_value:
             paid = installment_value
             status = "Paid"
-            # For fully paid installment, remaining after payment = 0
-            remaining_after_payments.append(0.0)
+            remaining = 0.0
         elif 0 < remaining_payment < installment_value:
             paid = remaining_payment
             status = "Partial"
-            running_balance -= paid
-            remaining_after_payments.append(round(running_balance, 2))
+            remaining = installment_value - paid
         else:
-            paid = 0
+            paid = 0.0
             status = "Pending"
-            # Show remaining balance only on the first pending or partial installment
-            if len([r for r in remaining_after_payments if r != 0]) == 0:
-                remaining_after_payments.append(round(running_balance, 2))
-            else:
-                remaining_after_payments.append(0.0)
-        
+            remaining = installment_value
+
         payments.append(round(paid, 2))
         statuses.append(status)
-        
-        running_balance -= paid
+        remaining_after_payments.append(round(remaining, 2))
+
         remaining_payment -= paid
-    
+
     # --- Display information ---
     st.subheader("📊 Payment Summary")
     col1, col2, col3 = st.columns(3)
     col1.metric("Funding Type", funding_type)
     col2.metric("Credit Hour Price (JOD)", credit_hour_price)
     col3.metric("Number of Credit Hours", number_of_hours)
-    
+
     col4, col5, col6 = st.columns(3)
     col4.metric("Fixed Fee (JOD)", university_fixed_fee)
     col5.metric("Total Tuition Fee (JOD)", total_amount)
     col6.metric("Payment Type", payment_option)
-    
+
     if payment_option == "Partial":
         st.info(f"💰 Amount Paid by Student: {amount_paid_by_student} JOD")
-    
-    st.info(f"⛽ Gas Fee Covered by University: {gas_fee} JOD (not included in student's fees)")
-    
+
     # --- Installments Table ---
     st.subheader("📅 Installment Schedule")
     df = pd.DataFrame({
@@ -128,21 +116,22 @@ if student_name and password:
         "Status": statuses
     })
     st.dataframe(df)
-    
-    # --- Payment Distribution Pie Chart ---
+
+    # --- Payment Confirmation ---
+    if st.button("Confirm Payment"):
+        st.success("✅ Payment has been confirmed successfully.")
+
+    # --- Payment Distribution Chart ---
     st.subheader("📈 Payment Distribution")
     paid_total = sum(payments)
     remaining_total = total_amount - paid_total
-    pie_data = pd.DataFrame({
-        "Status": ["Paid", "Remaining"],
-        "Amount (JOD)": [paid_total, remaining_total]
+    pie_chart_df = pd.DataFrame({
+        "Category": ["Paid", "Remaining"],
+        "Amount": [paid_total, remaining_total]
     })
-    fig = px.pie(pie_data, values="Amount (JOD)", names="Status", 
-                 color="Status", 
-                 color_discrete_map={"Paid": "green", "Remaining": "red"},
-                 title="Payment Distribution: Paid vs Remaining")
+    fig = px.pie(pie_chart_df, names="Category", values="Amount", title="Payment Status")
     st.plotly_chart(fig)
-    
+
     # --- Info Sidebar ---
     st.sidebar.markdown("### ℹ️ Additional Information")
     st.sidebar.write(f"🧑‍🎓 Student Name: {student_name}")
@@ -150,8 +139,7 @@ if student_name and password:
     st.sidebar.write(f"💳 Funding Type: {funding_type}")
     st.sidebar.write(f"💰 Total Tuition Fee: {total_amount} JOD")
     st.sidebar.write(f"💵 Amount Paid: {effective_payment} JOD")
-    st.sidebar.write(f"⛽ Gas Fee (University Covered): {gas_fee} JOD")
     st.sidebar.write(f"📆 Today's Date: {today.strftime('%Y-%m-%d')}")
-    
+
 else:
     st.warning("Please enter your student name and password to continue.")
