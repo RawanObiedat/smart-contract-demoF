@@ -8,7 +8,7 @@ st.set_page_config(page_title="Student Contract", layout="wide")
 
 # --- Login ---
 st.sidebar.title("🔐 Login")
-student_name = st.sidebar.text_input("Student Name:")
+student_name = st.sidebar.text_input("Student ID:")
 password = st.sidebar.text_input("Password:", type="password")
 
 if student_name and password:
