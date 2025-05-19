@@ -132,6 +132,14 @@ if student_name and password:
     fig = px.pie(pie_chart_df, names="Category", values="Amount", title="Payment Status")
     st.plotly_chart(fig)
 
+    # --- Refundable Amount Section (🔁 NEW ADDITION) ---
+    refundable_amount = round(max(0.0, effective_payment - total_amount), 2)
+
+    if refundable_amount > 0:
+        st.warning(f"⚠️ Extra Payment Detected: {refundable_amount} JOD is refundable and will be automatically returned to your wallet.")
+    else:
+        st.info("✅ No refundable amount.")
+
     # --- Info Sidebar ---
     st.sidebar.markdown("### ℹ️ Additional Information")
     st.sidebar.write(f"🧑‍🎓 Student Name: {student_name}")
@@ -141,8 +149,10 @@ if student_name and password:
     st.sidebar.write(f"💵 Amount Paid: {effective_payment} JOD")
     st.sidebar.write(f"⛽ Gas Fee Covered by University: {gas_fee_eth} ETH")
     st.sidebar.write(f"📆 Today's Date: {today.strftime('%Y-%m-%d')}")
+    st.sidebar.write(f"🔄 Refundable Amount: {refundable_amount} JOD")
 
 else:
     st.warning("Please enter your student name and password to continue.")
+
 
 
